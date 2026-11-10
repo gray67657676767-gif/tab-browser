@@ -24,6 +24,6 @@ Any host that runs Node works (Render, Railway, Replit, Glitch, a VPS). Upload t
 
 ## Notes
 
-- Searches go through DuckDuckGo's plain HTML results page.
+- Searches go through Bing.
 - Simple sites (Wikipedia, docs, news, blogs) work best. Big apps that need logins or heavy scripts (YouTube, Google, Discord) often break through a basic proxy.
 - Logins aren't kept between pages (cookies are dropped on purpose).
