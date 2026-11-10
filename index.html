@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tab Browser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500&display=swap">
+<style>
+/* Layout: browser chrome on top (tabs, toolbar), one page frame per tab filling the rest */
+:root {
+  --bg: #eef1f6; --chrome: #dfe4ee; --surface: #ffffff; --fg: #1b2333;
+  --muted: #5d6880; --line: #c8cfdc; --accent: #2f5bea; --accent-fg: #ffffff;
+  --display: "Space Grotesk", system-ui, sans-serif;
+  --body: "Inter", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #12161f; --chrome: #1b212d; --surface: #232a38; --fg: #e6eaf2;
+    --muted: #93a0b8; --line: #343d4f; --accent: #7a9bff; --accent-fg: #0d1220; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.5 var(--body); display: flex; flex-direction: column; }
+
+.tabs { display: flex; align-items: flex-end; gap: 4px; padding: 8px 12px 0; background: var(--chrome); overflow-x: auto; }
+.tab { display: flex; align-items: center; gap: 8px; min-width: 120px; max-width: 220px; padding: 8px 10px 8px 14px;
+  border-radius: 10px 10px 0 0; background: transparent; color: var(--muted); cursor: pointer; border: 0; font: inherit; }
+.tab.active { background: var(--surface); color: var(--fg); }
+.tab span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.tab .x { width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; font-size: 15px; line-height: 1; }
+.tab .x:hover { background: var(--line); }
+.newtab { border: 0; background: transparent; color: var(--muted); font-size: 20px; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; }
+.newtab:hover { background: var(--line); }
+
+.toolbar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.nav { border: 0; background: transparent; color: var(--fg); width: 34px; height: 34px; border-radius: 8px; font-size: 17px; cursor: pointer; }
+.nav:hover { background: var(--bg); }
+.address { flex: 1; min-width: 0; height: 36px; border-radius: 18px; border: 1px solid var(--line); background: var(--bg);
+  color: var(--fg); padding: 0 16px; font: inherit; }
+.address:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.views { flex: 1; position: relative; background: var(--surface); }
+.views iframe, .home { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+.home { background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 24px 16px; overflow: auto; }
+.home h1 { font: 700 clamp(32px, 6vw, 52px)/1 var(--display); margin: 0; letter-spacing: -0.02em; }
+.home h1 b { color: var(--accent); }
+.home form { width: min(560px, 100%); display: flex; gap: 8px; }
+.home input { flex: 1; min-width: 0; height: 48px; border-radius: 24px; border: 1px solid var(--line); background: var(--surface);
+  color: var(--fg); padding: 0 20px; font: 16px var(--body); }
+.home button { height: 48px; padding: 0 22px; border-radius: 24px; border: 0; background: var(--accent); color: var(--accent-fg);
+  font: 500 15px var(--body); cursor: pointer; }
+.quick { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 560px; }
+.quick button { height: auto; padding: 8px 14px; background: var(--surface); color: var(--fg); border: 1px solid var(--line); font: 13px var(--body); }
+.hint { color: var(--muted); font-size: 13px; margin: 0; text-align: center; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="tabs" id="tabs"><button class="newtab" id="newtab" title="New tab" aria-label="New tab">+</button></div>
+  <div class="toolbar">
+    <button class="nav" id="back" title="Back" aria-label="Back">←</button>
+    <button class="nav" id="fwd" title="Forward" aria-label="Forward">→</button>
+    <button class="nav" id="reload" title="Reload" aria-label="Reload">↻</button>
+    <button class="nav" id="homeBtn" title="Home" aria-label="Home">⌂</button>
+    <form id="addrForm" style="flex:1;display:flex;min-width:0">
+      <input class="address" id="address" placeholder="Search or type a web address" autocomplete="off">
+    </form>
+  </div>
+  <div class="views" id="views"></div>
+
+<template id="homeTpl">
+  <div class="home">
+    <h1>Tab<b>Browser</b></h1>
+    <form class="homeSearch">
+      <input placeholder="Search the web" autocomplete="off" aria-label="Search the web">
+      <button type="submit">Search</button>
+    </form>
+    <div class="quick">
+      <button data-go="https://en.wikipedia.org">Wikipedia</button>
+      <button data-go="https://news.ycombinator.com">Hacker News</button>
+      <button data-go="https://developer.mozilla.org">MDN Docs</button>
+      <button data-go="https://www.roblox.com/develop">Roblox Create</button>
+    </div>
+    <p class="hint">Everything opens right here. Nothing leaves this tab.</p>
+  </div>
+</template>
+
+<script>
+const SEARCH = 'https://html.duckduckgo.com/html/?q=';
+const tabsEl = document.getElementById('tabs');
+const viewsEl = document.getElementById('views');
+const address = document.getElementById('address');
+let tabs = [], active = null, nextId = 1;
+
+function toUrl(text) {
+  text = text.trim();
+  if (!text) return null;
+  if (/^https?:\/\//i.test(text)) return text;
+  if (/^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(text) && !text.includes(' ')) return 'https://' + text;
+  return SEARCH + encodeURIComponent(text);
+}
+
+function newTab() {
+  const tab = { id: nextId++, title: 'New tab', url: '' };
+  tab.btn = document.createElement('div');
+  tab.btn.className = 'tab';
+  tab.btn.innerHTML = '<span></span><button class="x" aria-label="Close tab" style="border:0;background:transparent;color:inherit;cursor:pointer">×</button>';
+  tab.btn.onclick = (e) => { if (e.target.classList.contains('x')) closeTab(tab); else select(tab); };
+  tabsEl.insertBefore(tab.btn, document.getElementById('newtab'));
+
+  tab.home = document.getElementById('homeTpl').content.firstElementChild.cloneNode(true);
+  tab.home.querySelector('form').onsubmit = (e) => { e.preventDefault(); go(tab, e.target.querySelector('input').value); };
+  tab.home.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(tab, b.dataset.go));
+  viewsEl.appendChild(tab.home);
+
+  tab.frame = document.createElement('iframe');
+  tab.frame.hidden = true;
+  tab.frame.setAttribute('title', 'Page');
+  viewsEl.appendChild(tab.frame);
+
+  tabs.push(tab);
+  select(tab);
+  tab.home.querySelector('input').focus();
+  return tab;
+}
+
+function render(tab) {
+  tab.btn.querySelector('span').textContent = tab.title || tab.url || 'New tab';
+  tab.btn.title = tab.title;
+  if (tab === active) address.value = tab.url;
+}
+
+function select(tab) {
+  active = tab;
+  tabs.forEach(t => {
+    t.btn.classList.toggle('active', t === tab);
+    t.home.hidden = t !== tab || !!t.url;
+    t.frame.hidden = t !== tab || !t.url;
+  });
+  render(tab);
+}
+
+function closeTab(tab) {
+  const i = tabs.indexOf(tab);
+  tabs.splice(i, 1);
+  tab.btn.remove(); tab.home.remove(); tab.frame.remove();
+  if (!tabs.length) return newTab();
+  if (active === tab) select(tabs[Math.max(0, i - 1)]);
+}
+
+function go(tab, text) {
+  const url = toUrl(text);
+  if (!url) return;
+  tab.url = url;
+  tab.title = 'Loading…';
+  tab.frame.src = '/p?url=' + encodeURIComponent(url);
+  select(tab);
+}
+
+function goHome(tab) {
+  tab.url = ''; tab.title = 'New tab';
+  tab.frame.src = 'about:blank';
+  select(tab);
+}
+
+// Pages report their real address and title back to us
+window.addEventListener('message', (e) => {
+  if (!e.data || !e.data.tabBrowser) return;
+  const tab = tabs.find(t => t.frame.contentWindow === e.source);
+  if (!tab) return;
+  tab.url = e.data.url;
+  tab.title = e.data.title || new URL(e.data.url).hostname;
+  render(tab);
+});
+
+document.getElementById('addrForm').onsubmit = (e) => { e.preventDefault(); go(active, address.value); address.blur(); };
+document.getElementById('newtab').onclick = newTab;
+document.getElementById('homeBtn').onclick = () => goHome(active);
+document.getElementById('back').onclick = () => { try { active.frame.contentWindow.history.back(); } catch {} };
+document.getElementById('fwd').onclick = () => { try { active.frame.contentWindow.history.forward(); } catch {} };
+document.getElementById('reload').onclick = () => { try { active.frame.contentWindow.location.reload(); } catch {} };
+address.onfocus = () => address.select();
+
+newTab();
+</script>
+</body>
+</html>
